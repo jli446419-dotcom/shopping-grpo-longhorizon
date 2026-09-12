@@ -285,3 +285,39 @@ learned. The current overall conceptual progress is approximately 80%.
 - Next gate: sync the launcher and runtime-contract fixes to AutoDL, then rerun the same one-update
   outcome-only GRPO smoke. Do not interpret that engineering run as an
   effectiveness result.
+
+## Outcome-only GRPO one-update checkpoint — 2026-09-12
+
+- The first real outcome-only optimizer update completed in 8 minutes 43
+  seconds on the RTX PRO 6000. The run reached `training/global_step=1`,
+  reported `training/optimizer_updated=1`, and wrote a `global_step_1`
+  checkpoint plus three structured diagnostics records.
+- Dynamic sampling generated four prompt groups / 16 trajectories over two
+  generation batches. Two all-gold groups were correctly dropped as
+  `constant_reward`; two reward-varying groups were retained, for an effective
+  group ratio of 0.5. No trajectory was infrastructure-invalid,
+  reward-unverifiable, sampling-invalid, overlong, aborted, or stuck in a
+  repeated-action loop.
+- The retained group rewards were
+  `[-0.265625, -0.196875, -0.196875, -0.196875]` and
+  `[0.04375, 0.04375, 1.0, 0.04375]`. They produced non-zero advantages
+  (minimum -0.2391, maximum 0.7172), policy loss -0.02222, gradient norm
+  0.1762, and an update at learning rate 1e-6.
+- Actor peak allocated/reserved GPU memory was 54.06/73.14 GiB. The trained
+  batch contained 49,306 tokens, response lengths ranged from 2,724 to 5,594
+  tokens with no clipping, and the measured step throughput was about 600.6
+  tokens/second.
+- Despite `val_before_train=false` and periodic save/test frequencies greater
+  than the run length, veRL performed termination-time validation and checkpoint
+  saving. Final validation reward mean@1 was 0.3431, but this has no matched
+  pre-update value and therefore is not evidence of one-step improvement.
+- A validation DataLoader worker emitted `Killed` during shutdown after
+  validation generation ended. The parent trainer still recorded the completed
+  update, final validation metrics, and checkpoint, so this run treats it as a
+  non-fatal cleanup warning. It remains a stability signal to monitor during
+  the control pilot.
+- Gate decision: the complete Stage C → rollout → Reward v3 filtering → dynamic
+  group selection → GRPO advantage → backward/optimizer → validation/checkpoint
+  path is now empirically validated. The next experimental step is a short
+  outcome-only control pilot, followed by diagnosis before selecting one
+  strategy treatment.

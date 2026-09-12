@@ -8,6 +8,7 @@ stored in Git.
 baseline/   base-model evaluation config and summary
 sft/        SFT training/evaluation config and summary
 grpo/       GRPO training/evaluation config and summary
+reproduction/ compact metrics from the current study; raw artifacts stay ignored
 comparison.md
 ```
 
@@ -57,8 +58,9 @@ hashes before training; promotion into `data/grpo/` is a separate decision.
 
 Use the merged curriculum Stage C model explicitly. A one-update smoke run
 checks the entire ShopSimulator → vLLM → AgentLoop → Reward v3 → optimizer path;
-it intentionally skips the initial validation and does not save/test during the
-single update:
+it intentionally skips the initial validation. The pinned veRL trainer still
+performs final validation and writes a final checkpoint when the one-step run
+terminates, independently of the periodic save/test frequencies:
 
 ```bash
 PYTHONPATH=src python scripts/run_experiment.py grpo_baseline \

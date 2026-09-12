@@ -1,0 +1,106 @@
+{
+  "schema_version": "shopping-reproduction-summary-v1",
+  "status": "in_progress",
+  "purpose": "compact reproducible evidence for the framework-and-strategy study; raw trajectories, logs, checkpoints, and model weights remain under ignored outputs paths",
+  "runtime": {
+    "git_commit": "4497491",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "visible_gpu_memory_gib": 94.97,
+    "environment_version": "shopsimulator-environment-v2.1",
+    "reward_version": "shopsimulator-reward-v3",
+    "base_model": "Qwen/Qwen3.5-2B",
+    "grpo_train_jsonl_sha256": "9b28f2b8e8eacd4ea35d99ab8bd8acc9a68df0604106df4d33a15b82b7c8d798",
+    "grpo_train_parquet_sha256": "7fd70ab7ca55502fd12deb9f84fcd110f360e38e9425cbd1f488d59ebf22ba92",
+    "grpo_validation_parquet_sha256": "4ccab70ddff705665d6a0dd361373824b7ffa47baf6befca2805bd589a4f91bb"
+  },
+  "sft_curriculum": {
+    "total_wall_time_minutes": 142.1,
+    "final_model": "stage-c/merged",
+    "stages": {
+      "a": {
+        "train_examples": 256,
+        "validation_examples": 28,
+        "train_loss": 0.42156537249684334,
+        "eval_loss": 0.3528253138065338,
+        "wall_time_minutes": 14.7,
+        "peak_gpu_memory_gib": 35.79
+      },
+      "b": {
+        "train_examples": 799,
+        "validation_examples": 88,
+        "train_loss": 0.3594668841361999,
+        "eval_loss": 0.3383582830429077,
+        "wall_time_minutes": 51.2,
+        "peak_gpu_memory_gib": 49.93
+      },
+      "c": {
+        "train_examples": 1069,
+        "validation_examples": 118,
+        "train_loss": 0.33180109867409097,
+        "eval_loss": 0.347846657037735,
+        "wall_time_minutes": 76.2,
+        "peak_gpu_memory_gib": 68.97
+      }
+    }
+  },
+  "stage_c_behavior_smoke": {
+    "evaluation_tasks": 10,
+    "strict_successes": 3,
+    "strict_success_rate": 0.3,
+    "reward_valid_tasks": 8,
+    "reward_valid_rate": 0.8,
+    "mean_final_reward": 0.3041145833333333,
+    "mean_weighted_score": 0.6739583333333333,
+    "average_steps": 8.2,
+    "reward_type_counts": {
+      "gold_purchase": 3,
+      "partial_alternative_purchase": 5,
+      "reward_unverifiable": 2
+    },
+    "guard_rejections": 1,
+    "context_overflow_tasks": 0
+  },
+  "grpo_one_update_smoke": {
+    "wall_time_seconds": 522.596,
+    "optimizer_updates": 1,
+    "generated_groups": 4,
+    "trained_groups": 2,
+    "effective_group_ratio": 0.5,
+    "generated_trajectories": 16,
+    "generation_batches": 2,
+    "sampling_invalid_trajectories": 0,
+    "infrastructure_invalid_rate": 0.0,
+    "reward_unverifiable_rate": 0.0,
+    "average_steps": 7.875,
+    "response_tokens": {
+      "mean": 4314.75,
+      "min": 2724,
+      "max": 5594,
+      "clip_ratio": 0.0
+    },
+    "trained_group_rewards": [
+      [-0.265625, -0.196875, -0.196875, -0.196875],
+      [0.04375, 0.04375, 1.0, 0.04375]
+    ],
+    "advantage_min": -0.23906250298023224,
+    "advantage_max": 0.7171875238418579,
+    "actor_policy_loss": -0.022217140882276,
+    "actor_gradient_norm": 0.17624413967132568,
+    "learning_rate": 1e-06,
+    "actor_peak_memory_allocated_gib": 54.0621657371521,
+    "actor_peak_memory_reserved_gib": 73.14453125,
+    "trained_tokens": 49306,
+    "throughput_tokens_per_second": 600.5525515180063,
+    "final_validation_reward_mean_at_1": 0.34308552123606206,
+    "final_validation_has_matched_pre_update_control": false,
+    "nonfatal_warnings": [
+      "one validation DataLoader worker was killed during shutdown after validation generation completed"
+    ]
+  },
+  "effect_estimates": {
+    "sft_vs_base": null,
+    "grpo_vs_sft": null,
+    "claim_status": "blocked_until_matched_deterministic_evaluation",
+    "required_protocol": "evaluate Base, Stage C, and the selected GRPO checkpoint on the same fixed development tasks with identical deterministic decoding and report paired task transitions"
+  }
+}
