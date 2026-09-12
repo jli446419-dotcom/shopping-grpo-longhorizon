@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from shopping_grpo.environment.actions import action_guard_tool_message
 from shopping_grpo.environment.client import ShopEnvironmentError
+from shopping_grpo.environment.observation import render_structured_observation
 from shopping_grpo.evaluation.rollout import (
     CollectionInfrastructureError,
     OpenAIChatClient,
@@ -18,6 +19,57 @@ from shopping_grpo.evaluation.rollout import (
     load_tasks,
     rollout_interrupted,
 )
+
+
+def search_observation():
+    return render_structured_observation(
+        {
+            "observation_version": "shopping-observation-v2",
+            "page_type": "search_results",
+            "search_available": False,
+            "actions": ["back to search", "100000000001"],
+            "query": "乳胶枕",
+            "normalized_query": "乳胶枕",
+            "page": 1,
+            "total_pages": 1,
+            "total_results": 1,
+            "rank_start": 1,
+            "rank_end": 1,
+            "products": [
+                {
+                    "rank": 1,
+                    "asin": "100000000001",
+                    "title": "乳胶枕",
+                    "brand": "示例品牌",
+                    "category": "枕头",
+                    "price": 99,
+                    "key_attributes": ["乳胶"],
+                }
+            ],
+        }
+    )
+
+
+def product_observation(actions, *, page_type="product_detail", content=""):
+    state = {
+        "observation_version": "shopping-observation-v2",
+        "page_type": page_type,
+        "search_available": False,
+        "actions": list(actions),
+        "product": {
+            "asin": "100000000001",
+            "title": "乳胶枕",
+            "brand": "示例品牌",
+            "category": "枕头",
+            "price": 99,
+            "key_attributes": ["乳胶"],
+        },
+        "selected_options": {},
+        "available_options": {"图案": ["满天星"]},
+    }
+    if page_type == "information_subpage":
+        state.update({"subpage": "Features", "content": content or "features"})
+    return render_structured_observation(state)
 
 
 class FakeEnv:
@@ -32,13 +84,13 @@ class FakeEnv:
         self.actions.append(action)
         if action == "search[乳胶枕]":
             return {
-                "instruction": "results [SEP] 100000000001 [SEP] 乳胶枕",
+                "instruction": search_observation(),
                 "reward": 0.0,
                 "done": False,
             }
         if action == "click[100000000001]":
             return {
-                "instruction": 'detail\n\n可点击的按钮: ["Buy Now"]',
+                "instruction": product_observation(["Buy Now"]),
                 "reward": 0.0,
                 "done": False,
             }
@@ -84,25 +136,27 @@ class GuardRecoveryEnv(FakeEnv):
         self.actions.append(action)
         if action == "search[乳胶枕]":
             return {
-                "instruction": "results [SEP] 100000000001 [SEP] 乳胶枕",
+                "instruction": search_observation(),
                 "reward": 0.0,
                 "done": False,
             }
         if action == "click[100000000001]":
             return {
-                "instruction": 'detail\n\n可点击的按钮: ["Features", "Buy Now"]',
+                "instruction": product_observation(["Features", "Buy Now"]),
                 "reward": 0.0,
                 "done": False,
             }
         if action == "click[Features]":
             return {
-                "instruction": 'features\n\n可点击的按钮: ["< Prev"]',
+                "instruction": product_observation(
+                    ["< Prev"], page_type="information_subpage"
+                ),
                 "reward": 0.0,
                 "done": False,
             }
         if action == "click[< Prev]":
             return {
-                "instruction": 'detail\n\n可点击的按钮: ["Features", "Buy Now"]',
+                "instruction": product_observation(["Features", "Buy Now"]),
                 "reward": 0.0,
                 "done": False,
             }
@@ -275,22 +329,22 @@ class RolloutTest(unittest.TestCase):
             def step(self, action):
                 self.actions.append(action)
                 if action == "search[乳胶枕]":
-                    return {"instruction": "results [SEP] 100000000001", "reward": 0.0, "done": False}
+                    return {"instruction": search_observation(), "reward": 0.0, "done": False}
                 if action == "click[100000000001]":
                     return {
-                        "instruction": 'detail\n\n可点击的按钮: ["满天星", "Description", "Buy Now"]',
+                        "instruction": product_observation(["满天星", "Description", "Buy Now"]),
                         "reward": 0.0,
                         "done": False,
                     }
                 if action == "click[满天星]":
                     return {
-                        "instruction": 'selected\n\n可点击的按钮: ["Description", "Buy Now"]',
+                        "instruction": product_observation(["Description", "Buy Now"]),
                         "reward": 0.0,
                         "done": False,
                     }
                 if action == "click[Description]":
                     return {
-                        "instruction": 'details\n\n可点击的按钮: ["Buy Now"]',
+                        "instruction": product_observation(["Buy Now"]),
                         "reward": 0.0,
                         "done": False,
                     }
@@ -334,16 +388,16 @@ class RolloutTest(unittest.TestCase):
             def step(self, action):
                 self.actions.append(action)
                 if action == "search[乳胶枕]":
-                    return {"instruction": "results [SEP] 100000000001", "reward": 0.0, "done": False}
+                    return {"instruction": search_observation(), "reward": 0.0, "done": False}
                 if action == "click[100000000001]":
                     return {
-                        "instruction": 'detail\n\n可点击的按钮: ["满天星", "Buy Now"]',
+                        "instruction": product_observation(["满天星", "Buy Now"]),
                         "reward": 0.0,
                         "done": False,
                     }
                 if action == "click[满天星]":
                     return {
-                        "instruction": 'selected\n\n可点击的按钮: ["Buy Now"]',
+                        "instruction": product_observation(["Buy Now"]),
                         "reward": 0.0,
                         "done": False,
                     }

@@ -127,6 +127,10 @@ def build_experiment(
     model: str | Path | None = None,
     train_data: Path | None = None,
     validation_data: Path | None = None,
+    training_steps: int | None = None,
+    save_freq: int | None = None,
+    test_freq: int | None = None,
+    val_before_train: bool | None = None,
 ) -> tuple[list[str], dict[str, str], Path]:
     root = Path(root).resolve()
     output_root = Path(output_root)
@@ -143,6 +147,11 @@ def build_experiment(
         else source_path
     )
     if experiment["stage"] == "sft":
+        if any(
+            value is not None
+            for value in (training_steps, save_freq, test_freq, val_before_train)
+        ):
+            raise ValueError("GRPO runtime budget overrides cannot be used for SFT")
         command = [
             _python(root),
             "scripts/train_lora_sft.py",
@@ -179,7 +188,9 @@ def build_experiment(
     command = [
         _python(root),
         "scripts/train_grpo.py",
-        "--model", str(model or root / "outputs/models/sft-merged"),
+        "--model", str(
+            model or root / "outputs/models/sft-curriculum/stage-c/merged"
+        ),
         "--train-data", str(train_data or root / "data/grpo/train.parquet"),
         "--val-data", str(validation_data or root / "data/grpo/validation.parquet"),
         "--output", str(output),
@@ -196,6 +207,20 @@ def build_experiment(
         f"actor_rollout_ref.actor.kl_loss_coef={settings['kl_coefficient']}",
         f"shopping_trace.enable={str(bool(settings['trace_enabled'])).lower()}",
     ]
+    runtime_overrides = {
+        "trainer.total_training_steps": training_steps,
+        "trainer.save_freq": save_freq,
+        "trainer.test_freq": test_freq,
+    }
+    for key, value in runtime_overrides.items():
+        if value is not None:
+            if int(value) <= 0:
+                raise ValueError(f"{key} must be positive")
+            command.append(f"{key}={int(value)}")
+    if val_before_train is not None:
+        command.append(
+            f"trainer.val_before_train={str(bool(val_before_train)).lower()}"
+        )
     return command, environment, output
 
 
@@ -207,6 +232,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model")
     parser.add_argument("--train-data", type=Path)
     parser.add_argument("--validation-data", type=Path)
+    parser.add_argument("--training-steps", type=int)
+    parser.add_argument("--save-freq", type=int)
+    parser.add_argument("--test-freq", type=int)
+    parser.add_argument(
+        "--skip-val-before-train",
+        action="store_true",
+        help="skip the initial deterministic validation for a fast GRPO smoke run",
+    )
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
@@ -223,6 +256,10 @@ def main() -> None:
         model=args.model,
         train_data=args.train_data,
         validation_data=args.validation_data,
+        training_steps=args.training_steps,
+        save_freq=args.save_freq,
+        test_freq=args.test_freq,
+        val_before_train=False if args.skip_val_before_train else None,
     )
     print(json.dumps({"experiment": experiment, "command": command, "output": str(output)}, indent=2))
     if args.dry_run:
