@@ -193,3 +193,31 @@ learned. The current overall conceptual progress is approximately 80%.
   environment lacks `pyarrow`, and installing dependencies requires explicit
   approval. The six full-suite errors likewise reflect the absent cloud
   training stack rather than failures in the locally testable contracts.
+
+## AutoDL environment checkpoint — 2026-09-12
+
+- Provisioned an RTX PRO 6000 Blackwell Server Edition with 94.97 GiB visible
+  memory, CUDA-capable driver 595.58.03, 148 GiB data volume, and approximately
+  1 TiB host memory.
+- Installed the locked main stack successfully: Python 3.12, PyTorch 2.11.0
+  with CUDA 13.0, veRL 0.8.0, vLLM 0.25.1, Ray 2.56.1, NumPy 2.2.6, and
+  PyArrow 25.0.0. CUDA and BF16 checks passed on the target GPU.
+- Built the isolated ShopSimulator Python 3.10.21 environment and the 23,421
+  product BM25 index. Product and index hashes matched the repository contract,
+  and the veRL dynamic-sampling patch applied successfully.
+- The first complete cloud suite discovered 208 tests: 202 passed, 5 failed,
+  and 1 optional wheel test skipped. All five failures were stale assertions in
+  `tests/test_verl_adapter.py` that were previously hidden locally by the absent
+  veRL dependency: they referenced removed `reward_components`, rejected the
+  minimized public Reward v3 detail field, supplied pre-v3 terminal fixtures,
+  or expected the retired `asin_not_visible` Guard reason. Production code was
+  not changed; the fixtures were updated to the current contracts pending a
+  cloud rerun.
+- The mirror-assisted manual `uv sync` changed `uv.lock`; this is environment
+  provenance drift rather than an intended source change. `scripts/setup.sh`
+  now uses `uv sync --locked` so future setup attempts fail instead of silently
+  rewriting the lock. The cloud checkout must restore its generated lock-file
+  edit before pulling the test fix.
+- After installation, the data disk used 21 GiB and retained 128 GiB free. No
+  model weights, training rollout, optimizer update, or paid evaluation was
+  started.
