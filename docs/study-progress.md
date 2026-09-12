@@ -321,3 +321,44 @@ learned. The current overall conceptual progress is approximately 80%.
   path is now empirically validated. The next experimental step is a short
   outcome-only control pilot, followed by diagnosis before selecting one
   strategy treatment.
+
+## Outcome-only GRPO 50-update checkpoint - 2026-09-12
+
+- The 50-step control run completed 50 real optimizer updates in 87 minutes on
+  the RTX PRO 6000. It saved checkpoints at steps 25 and 50. Successful-update
+  step time averaged 68.35 seconds; actor peak allocated/reserved memory was
+  42.84/58.64 GiB.
+- Dynamic sampling required 27 additional failed collection attempts before it
+  accumulated the requested variable-reward groups. Across all attempts it
+  generated 1,568 trajectories in 392 groups, but only 400 trajectories in 100
+  groups entered optimization. Of all groups, 170 were constant-reward and 93
+  contained sampling-invalid trajectories; another 29 otherwise usable groups
+  were stranded in incomplete retry batches. Effective rollout utilization was
+  therefore 25.51%.
+- The 400 update trajectories were all Reward-v3-valid and sampling-valid:
+  141 gold purchases (35.25%), 178 partial alternatives (44.50%), 48 wrong
+  purchases (12.00%), and 33 repeat loops (8.25%). Mean shaped reward was
+  0.1779 and mean environment length was 8.69 steps.
+- Comparing updates 1-25 with 26-50, mean shaped reward rose from 0.1332 to
+  0.2226 and gold-purchase rate rose from 32.5% to 38.0%. Evidence coverage
+  improved from 90.19% to 92.35%, repeat loops fell from 9.0% to 7.5%, and
+  response length fell 4.45%. These are directional on-policy batch trends,
+  not held-out effectiveness estimates.
+- Held-out Reward-v3 mean@1 was 0.3561 at step 25 and 0.3576 at step 50, only
+  +0.0015 (+0.43% relative); mean turns stayed 17.66. An independent 10-step
+  run reached 0.3752, so the available validation evidence is noisy and does
+  not show monotonic improvement with more updates. Select checkpoints by a
+  matched evaluation rather than assuming that the final checkpoint is best.
+- PPO KL remained small (mean 0.00584) and clip fraction averaged 0.0849%, so
+  the policy update was conservative. Entropy calculation was disabled in this
+  control, leaving no direct entropy curve for exploration-collapse diagnosis.
+- The upstream README reports a historical Final-200 reference of 0% strict
+  success and -0.1105 reward for unmodified Qwen3.5-2B Base, 60.5% and 0.4729
+  after SFT, and 62.0% and 0.5158 after 100-step GRPO. Treat these as published
+  external references only: they do not share a locally verified task artifact
+  and protocol with this reproduction, so they must not be directly subtracted
+  from the local smoke or veRL validation numbers.
+- Next gate: evaluate the unmodified base, Stage C SFT, and selected GRPO
+  checkpoints (at least steps 10 and 50) on the same frozen tasks and protocol.
+  If GPU time is constrained, retain the published Base result as context but
+  label it explicitly as external rather than as a paired local baseline.
