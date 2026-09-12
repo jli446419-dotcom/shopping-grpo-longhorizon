@@ -12,6 +12,7 @@ LLM_PORT="${LLM_PORT:-8000}"
 LLM_URL="http://127.0.0.1:${LLM_PORT}"
 MODEL_NAME="${SERVED_MODEL_NAME:-shopping-agent}"
 MODEL_PID=""
+ENV_PID=""
 
 for path in "$BASE_MODEL" "$SFT_MODEL" "$GRPO_MODEL" "$BENCHMARK"; do
   if [[ ! -e "$path" ]]; then
@@ -19,15 +20,6 @@ for path in "$BASE_MODEL" "$SFT_MODEL" "$GRPO_MODEL" "$BENCHMARK"; do
     exit 1
   fi
 done
-if ! curl -sS --max-time 5 --output /dev/null "$ENV_URL"; then
-  echo "ShopSimulator is not reachable at $ENV_URL; start it before this script." >&2
-  exit 1
-fi
-if curl -fsS "$LLM_URL/health" >/dev/null 2>&1; then
-  echo "port $LLM_PORT already has a live model server; stop it first." >&2
-  exit 1
-fi
-
 cleanup_model() {
   if [[ -n "$MODEL_PID" ]] && kill -0 "$MODEL_PID" 2>/dev/null; then
     kill "$MODEL_PID"
@@ -35,7 +27,44 @@ cleanup_model() {
   fi
   MODEL_PID=""
 }
-trap cleanup_model EXIT INT TERM
+
+cleanup_all() {
+  cleanup_model
+  if [[ -n "$ENV_PID" ]] && kill -0 "$ENV_PID" 2>/dev/null; then
+    kill "$ENV_PID"
+    wait "$ENV_PID" 2>/dev/null || true
+  fi
+  ENV_PID=""
+}
+trap cleanup_all EXIT INT TERM
+
+mkdir -p "$OUTPUT_ROOT"
+if ! curl -sS --max-time 5 --output /dev/null "$ENV_URL"; then
+  echo "starting ShopSimulator at $ENV_URL"
+  bash "$ROOT/scripts/start_environment.sh" >"$OUTPUT_ROOT/environment.log" 2>&1 &
+  ENV_PID=$!
+  env_ready=0
+  for _ in $(seq 1 60); do
+    if curl -sS --max-time 5 --output /dev/null "$ENV_URL"; then
+      env_ready=1
+      break
+    fi
+    if ! kill -0 "$ENV_PID" 2>/dev/null; then
+      echo "ShopSimulator exited during startup" >&2
+      tail -n 80 "$OUTPUT_ROOT/environment.log" >&2
+      exit 1
+    fi
+    sleep 5
+  done
+  if [[ "$env_ready" != 1 ]]; then
+    echo "ShopSimulator did not become reachable within 5 minutes" >&2
+    exit 1
+  fi
+fi
+if curl -fsS "$LLM_URL/health" >/dev/null 2>&1; then
+  echo "port $LLM_PORT already has a live model server; stop it first." >&2
+  exit 1
+fi
 
 labels=(base sft grpo-step50)
 models=("$BASE_MODEL" "$SFT_MODEL" "$GRPO_MODEL")
