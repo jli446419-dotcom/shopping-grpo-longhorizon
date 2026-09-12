@@ -8,9 +8,20 @@ from shopping_grpo.environment.manifest import (
     shopsimulator_source_commit,
     validate_manifest,
 )
+from scripts.check_grpo_runtime import validate_reward_runtime_files
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class EnvironmentManifestTest(unittest.TestCase):
+    def test_frozen_runtime_hashes_match_checkout(self):
+        manifest = json.loads(
+            (ROOT / "data/environment.json").read_text(encoding="utf-8")
+        )
+
+        validate_reward_runtime_files(manifest, ROOT)
+
     def test_current_environment_contract_is_validated(self):
         manifest = {
             "manifest_version": MANIFEST_VERSION,

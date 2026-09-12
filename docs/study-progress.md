@@ -276,6 +276,12 @@ learned. The current overall conceptual progress is approximately 80%.
   occurred. The launcher now constructs Hydra overrides through one shared
   helper used by both preflight and veRL, and a non-dry-run regression test
   covers the previously untested path.
-- Next gate: sync the launcher fix to AutoDL and rerun the same one-update
+- The next preflight correctly detected that `data/environment.json` still
+  contained the pre-`d99a0ac` hash for `web_agent_text_env.py`. That commit
+  intentionally removed an undefined page-rendering argument, changing the
+  checked-in file hash from `448f…` to `d6db…`, but did not update the frozen
+  manifest. The manifest now identifies the repaired checkout, and a regression
+  test verifies every frozen runtime-file hash against the repository.
+- Next gate: sync the launcher and runtime-contract fixes to AutoDL, then rerun the same one-update
   outcome-only GRPO smoke. Do not interpret that engineering run as an
   effectiveness result.
