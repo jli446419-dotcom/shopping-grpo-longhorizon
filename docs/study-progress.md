@@ -221,3 +221,61 @@ learned. The current overall conceptual progress is approximately 80%.
 - After installation, the data disk used 21 GiB and retained 128 GiB free. No
   model weights, training rollout, optimizer update, or paid evaluation was
   started.
+- Cloud rerun at commit `f92e74a` completed all 208 discovered tests in
+  20.436 seconds: 207 passed and 1 optional test was skipped. This closes the
+  environment-and-contract validation gate; there are no remaining test
+  failures before model/runtime preflight.
+
+## Canonical SFT checkpoint — 2026-09-12
+
+- Downloaded the public `Qwen/Qwen3.5-2B` base from ModelScope and completed
+  the canonical Pure V4 curriculum through Stage C on one RTX 6000 96 GB GPU.
+- Stage A kept 256 train / 28 validation examples, finished in 14.7 minutes,
+  and reported train/eval loss 0.4216/0.3528 with 35.79 GiB peak allocation.
+- Stage B kept 799 / 88 examples, finished in 51.2 minutes, and reported
+  train/eval loss 0.3595/0.3384 with 49.93 GiB peak allocation.
+- Stage C kept 1,069 / 118 examples, finished in 76.2 minutes, and reported
+  train/eval loss 0.3318/0.3478 with 68.97 GiB peak allocation. Four train and
+  one validation trajectory from the manifest exceeded 24,576 tokens and were
+  intentionally dropped whole rather than truncated.
+- Each stage produced a 277 MiB LoRA adapter and a 4.2 GiB standalone merged
+  model. `stage-c/merged` contains readable Qwen3.5 weights and is the sole
+  supported GRPO starting policy. Total A-to-C wall time was about 2 h 23 min.
+- `train()` stores epoch evaluation metrics in Trainer log history, so the
+  terminal `eval_loss=N/A` line is a reporting defect rather than a missing
+  validation run. This cosmetic issue remains to be repaired.
+- Next gate: run a small non-Final-200 Stage C behavior smoke, then one real
+  outcome-only GRPO optimizer update if tool behavior and Reward v3 are valid.
+
+## Stage C behavior and GRPO launcher checkpoint — 2026-09-12
+
+- A deterministic 10-task Stage C smoke completed all tasks: 3 strict
+  `gold_purchase`, 5 valid `partial_alternative_purchase`, and 2
+  `reward_unverifiable`. Mean final reward was 0.3041, mean trajectory length
+  was 8.2 steps, and Reward v3 evidence was valid for 8/10 trajectories.
+- The three strict successes selected the target ASIN and every required
+  option. The five alternatives retained complete evidence and supplied both
+  positive and negative graded outcomes, so the behavior prior is sufficient
+  for a one-update outcome-only GRPO engineering smoke.
+- Task 643 bought a substitute without selecting its price-determining color
+  option. Task 2718 found the target, but a whitespace difference between the
+  raw option and the normalized observation footer caused the Guard to reject
+  `select_option`; the model then bought without recovering. Both tasks were
+  correctly marked `sampling_invalid=true` because variant price was
+  unverifiable. The latter also exposes a Guard/projection canonicalization
+  risk to quantify before longer training.
+- vLLM served successfully on the Blackwell host with
+  `VLLM_USE_FLASHINFER_SAMPLER=0`; this bypassed the unavailable FlashInfer
+  sampler JIT path without changing the model or project dependencies.
+- Raw artifacts are retained under the ignored local directory
+  `outputs/cloud-runs/2026-09-12/stage-c-smoke10`. The transfer archive
+  SHA-256 is
+  `d01ca2702578b6690ba6fe2d49f75e29fb5c33e78f24ce108e927ea871172e79`.
+- The first real one-update launch stopped before preflight with
+  `NameError: overrides is not defined`; no model loading or optimizer update
+  occurred. The launcher now constructs Hydra overrides through one shared
+  helper used by both preflight and veRL, and a non-dry-run regression test
+  covers the previously untested path.
+- Next gate: sync the launcher fix to AutoDL and rerun the same one-update
+  outcome-only GRPO smoke. Do not interpret that engineering run as an
+  effectiveness result.

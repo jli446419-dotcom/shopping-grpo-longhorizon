@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.train_grpo import build_command, parse_args
+from scripts.train_grpo import build_command, main as train_grpo_main, parse_args
 from shopping_grpo.cli import main as cli_main
 from shopping_grpo.smoke import run_cpu_smoke
 
@@ -94,6 +94,48 @@ class PublicEntrypointTest(unittest.TestCase):
             str(output.resolve() / "training_diagnostics.jsonl"),
         )
         self.assertIn("trainer.logger=[console]", command)
+
+    def test_public_grpo_launcher_passes_same_overrides_to_preflight(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            model = temporary / "model"
+            model.mkdir()
+            (model / "config.json").write_text("{}", encoding="utf-8")
+            (model / "model.safetensors").write_bytes(b"example")
+            train = temporary / "train.parquet"
+            train.write_bytes(b"example")
+            validation = temporary / "validation.parquet"
+            validation.write_bytes(b"example")
+            output = temporary / "output"
+            argv = [
+                "train_grpo.py",
+                "--model", str(model),
+                "--train-data", str(train),
+                "--val-data", str(validation),
+                "--output", str(output),
+                "--config", str(root / "configs/grpo.yaml"),
+                "--experiment-name", "one-update-smoke",
+                "--", "trainer.total_training_steps=1",
+            ]
+            with patch.object(sys, "argv", argv):
+                with patch(
+                    "scripts.train_grpo.subprocess.call",
+                    side_effect=[0, 0],
+                ) as call:
+                    with patch("builtins.print"):
+                        with self.assertRaises(SystemExit) as exit_status:
+                            train_grpo_main()
+
+        self.assertEqual(exit_status.exception.code, 0)
+        preflight, trainer = (item.args[0] for item in call.call_args_list)
+        expected = [
+            "trainer.logger=[console]",
+            "trainer.experiment_name=one-update-smoke",
+            "trainer.total_training_steps=1",
+        ]
+        self.assertEqual(preflight[-3:], expected)
+        self.assertEqual(trainer[-3:], expected)
 
 
 if __name__ == "__main__":
